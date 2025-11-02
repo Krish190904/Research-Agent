@@ -1,5 +1,69 @@
 # Deep Researcher Agent
 
+This project provides a local-first research agent: document ingestion, local embeddings, FAISS indexing, MMR reranking, multi-step reasoning traces, and export to Markdown/PDF.
+
+Quick highlights
+- Local embeddings (sentence-transformers) with TF-IDF fallback when heavy deps are missing
+- FAISS vector store + SQLite metadata and binary embedding storage
+- MMR reranking with tunable lambda and candidate multiplier
+- Streamlit UI and CLI for ingestion, indexing, querying, and export
+
+Requirements
+- Python 3.10+
+- See `requirements.txt` for full list. `sentence-transformers` and `torch` are optional but recommended for high-quality embeddings.
+
+Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Run tests
+
+```bash
+pytest -q
+```
+
+CLI examples
+
+Ingest folder and index (ingest -> embed -> index):
+
+```bash
+python cli.py ingest --folder ./sample_data --recursive
+```
+
+Query with MMR
+
+```bash
+python cli.py query --q "What topics are covered?" --topk 5 --mmr --mmr-lambda 0.7 --candidate-multiplier 5
+```
+
+Streamlit UI
+
+```bash
+streamlit run ui/app.py
+```
+
+MMR tuning guidance
+- `mmr_lambda` in [0,1]: higher = prefer relevance, lower = prefer diversity
+- `candidate_multiplier`: number of candidates considered = top_k * multiplier (higher gives more diversity options but costs time)
+
+Storage format
+- Embeddings are stored in SQLite using binary `LargeBinary` columns as raw float32 bytes. This is efficient for local setups and enables MMR reranking without re-embedding.
+
+Docker
+
+```bash
+docker-compose up --build
+```
+
+Notes
+- For production, consider migrating the SQLite schema (Alembic) if you change storage formats.
+- For large corpora, use on-disk vector stores, sharding, or a dedicated vector DB.
+# Deep Researcher Agent
+
 A production-quality, fully local document research and reasoning system. This agent ingests documents (PDF, Markdown, TXT, HTML), builds local embeddings and vector indices, performs multi-step reasoning with explainable traces, and exports research reports to Markdown and PDF.
 
 ## Features
@@ -167,3 +231,29 @@ Built with:
 
 **Author**: Krish23101996  
 **Created**: 2025-11-01
+
+## Deploy locally (quickstart)
+
+If you just want to run the app locally without downloading large ML models, use the lightweight image and the Streamlit UI:
+
+1. Build the lightweight image (uses `requirements-lite.txt`):
+
+```bash
+docker build -f Dockerfile.lite -t agent:lite .
+docker run -d --rm -p 8502:8501 --name agent_lite agent:lite \
+  streamlit run ui/app.py --server.port 8501
+```
+
+Open http://localhost:8502 in your browser.
+
+2. For full functionality (sentence-transformers), either run locally after installing `requirements.txt` or build the full Dockerfile (may download ~500MB models on first run):
+
+```bash
+docker build -f Dockerfile -t agent:full .
+docker run -p 8501:8501 agent:full
+```
+
+3. CI and Migrations
+
+- CI: A GitHub Actions workflow is provided at `.github/workflows/ci.yml` to run tests and build the lightweight image.
+- Alembic scaffolding is included under `alembic/`. Use `alembic upgrade head` to apply the initial migration to the configured SQLite DB.

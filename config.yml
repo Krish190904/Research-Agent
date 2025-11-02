@@ -1,0 +1,28 @@
+embeddings:
+  model: "sentence-transformers/all-mpnet-base-v2"
+  batch_size: 32
+  device: auto
+
+chunking:
+  size: 512
+  overlap: 128
+
+index:
+  type: "FlatIP"
+  faiss_path: "data/faiss.index"
+  sqlite_path: "data/meta.db"
+
+retrieve:
+  top_k: 5
+  mmr: true
+  similarity_threshold: 0.1
+  mmr_lambda: 0.7
+  mmr_candidate_multiplier: 5
+
+storage:
+  embedding_format: "binary"  # options: "binary" or "hex"
+
+llm:
+  enabled: false
+  type: "local"
+  model: ""
